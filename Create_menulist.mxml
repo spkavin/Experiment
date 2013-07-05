@@ -1,0 +1,914 @@
+<?xml version="1.0"?>
+<!-- menus/MenuBarEventInfo.mxml -->
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   creationComplete="initCollections();" backgroundColor="black" currentState="home" width="620" height="500" title="">
+	<s:states>
+		<s:State name="home"/>
+		<s:State name="Createproject"/>
+		<s:State name="xmlTool" />
+		<s:State name="importAI" />
+		<s:State name="exportToAI" />
+		<s:State name="Deleteproject" />
+		<s:State name="ScreenContract" />
+	</s:states>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.xml.XmlGeneration;
+			
+			import flash.filesystem.File;
+			import flash.utils.getTimer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.MenuEvent;
+	
+			private var des_AIfilepath:File;
+			private var AIFilesPath:String=new String();
+			private var listfiles:ArrayCollection=new ArrayCollection();
+			private var des_filepath:File;
+			private var AIData:String=new String();
+			private var contractRef:FileReferenceList = new FileReferenceList();
+			private var documents:File;
+			private var AIfile:File=new File();
+			private var folderdestinationFilesPath:String="";
+			private var projectfilepath:File;
+			private var projectImportedPath:String="";
+			private var projectWorkBenchdestinationFilesPath:String="";
+			private var projectfolderdestinationFilesPath:String="";
+			private var projectdSEIfolderdestinationFilesPath:String="";
+			private var projectmSEIfolderdestinationFilesPath:String="";
+			private var projectcSEIfolderdestinationFilesPath:String="";
+			private var projectXMLfolderdestinationFilesPath:String="";
+			private var mpDBFileStream:FileStream;
+			private var workbench_mpDBFileStream:FileStream;
+			private var workbenchfile:File=new File();
+			private var notPresent:int=0;
+			private var check:int=0;
+			private var importFolderVisible:int=0;
+			private var projectFolderName:String=new String();
+			private var fileNameImported:String=new String();
+			private var fileNameExported:String=new String();
+			private var stateChange:String=new String();
+			
+			//////////////////////////////////////////////////////////////
+			
+			[Bindable]
+			public var menuBarCollection:XMLListCollection;
+			
+			private var menubarXML:XMLList =<>
+			<menuitem label="File" icon="topIcon"> 
+				<menuitem label="New Project"/>
+				<menuitem label="Import AI"/>	
+				<menuitem label="Delete Project"/>
+				<menuitem label="Export to AI"/>
+			</menuitem>
+
+			<menuitem label="Window">
+				<menuitem label="Minimize" />
+				<menuitem label="Close" />
+			</menuitem>
+
+			<menuitem label="Settings">
+				<menuitem label="Launch Visual Editor"/>
+				<menuitem label="XML Renderer"/>
+				<menuitem label="Android Renderer"/>
+			</menuitem>
+				</>
+				
+			
+			// Event handler to initialize the MenuBar control.
+			private function initCollections():void
+			{
+				menuBarCollection = new XMLListCollection(menubarXML);
+			}
+			
+			// Event handler for the MenuBar control's change event.
+			private function changeHandler(event:MenuEvent):void 
+			{	
+				if (event.label == "New Project") 
+				{
+					changestate();	
+				}
+				else if (event.label == "Import AI") 
+				{
+					changestatetoAI();	
+				}
+				else if (event.label == "Export to AI") 
+				{
+					changestatetoExportAI();	
+				}
+				else if (event.label == "Delete Project") 
+				{
+					deletestate();	
+				}
+				else if(event.label == "Minimize")
+				{
+					this.nativeWindow.minimize();	
+				}
+				else if(event.label == "Close")
+				{
+					this.nativeWindow.close();
+				}
+		   }
+			
+			private function changestate():void
+			{
+				importFolderVisible++;
+				currentState="Createproject";	
+				stateChange = "Project Creation";
+			}
+			
+			private function deletestate():void
+			{
+				currentState="Deleteproject";	
+				stateChange = "Deletion Project";
+			}
+			
+			//Create folder and save into mpdb File////
+			private function readPathOfFolders(event:Event):void
+			{
+					
+				var dir:File=File.documentsDirectory.resolvePath("Workbench_Tool");
+				
+				if(dir.isDirectory.valueOf()==true)
+				{	
+					if(projectName.text!="")  //Check whether name is entered or not
+					{
+						projectFolderName = projectName.text;
+						projectWorkBenchdestinationFilesPath=dir.nativePath;
+						
+						var projFolder:File=File.documentsDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName);
+
+						if(projFolder.isDirectory.valueOf()==true) //Check project with same name exits or not
+						{
+							Alert.show("Project with same name exists Please enter another Name....","Create Project");
+						}
+						else
+						{
+							check = 0;
+							var folderArrayNameChk:Array = dir.getDirectoryListing();
+						//	Alert.show("Length="+folderArrayNameChk.length);
+							for(var t:int=0;t<folderArrayNameChk.length;t++)
+							{
+								if(folderArrayNameChk[t].name.search(projectFolderName)>=0)
+								{
+							//		Alert.show("in if..");
+									check++;
+									break;
+								}
+								else
+								{
+							//		Alert.show("in else...");
+									check--;
+								}
+							}
+					//		Alert.show("Check="+check);
+							if(check>0)
+							{
+						//		Alert.show("Check="+check);
+								Alert.show("Project with same name exists Please enter another Name....","Create Project");
+							}
+							else
+							{
+								projFolder.createDirectory();
+								projectfolderdestinationFilesPath=projFolder.nativePath;
+								
+								projectLocation.text=projectfolderdestinationFilesPath;
+						//		HomeprojectName.text=projectName.text;
+								
+								var dSEIdir:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'dSEI');
+								dSEIdir.createDirectory();
+								projectdSEIfolderdestinationFilesPath=dSEIdir.nativePath;
+								//	Alert.show("ProjectCSVFolderPath="+projectAIfolderdestinationFilesPath);
+								
+								var mSEIdir:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+"mSEI");
+								mSEIdir.createDirectory();
+								projectmSEIfolderdestinationFilesPath=mSEIdir.nativePath;
+								//	Alert.show("ProjectCSVFolderPath="+projectCSVfolderdestinationFilesPath);
+								
+								var cSEIdir:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+"cSEI");
+								cSEIdir.createDirectory();
+								projectcSEIfolderdestinationFilesPath=cSEIdir.nativePath;
+								//	Alert.show("ProjectCSVFolderPath="+projectCSVfolderdestinationFilesPath);
+								
+								var xmldir:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'XML');
+								xmldir.createDirectory();
+								projectXMLfolderdestinationFilesPath=xmldir.nativePath;
+								//	Alert.show("ProjectXMLFolderPath="+projectXMLfolderdestinationFilesPath);
+								
+								var file:File=new File(projectfolderdestinationFilesPath+'/'+"mpDBFile"+".csv");
+								mpDBFileStream=new FileStream();
+								
+								//Alert.show("Project creation succeeded in Documents Folder");
+								if (mpDBFileStream.open(file,FileMode.WRITE) == false)
+								{
+									Alert.show("File is not opened successfully");
+									return;
+								}
+								else
+								{
+									mpDBFileStream.writeUTFBytes("MPDB File"+'\n');
+									mpDBFileStream.writeUTFBytes("DefaultSEIPath="+projectdSEIfolderdestinationFilesPath+'\n');
+									mpDBFileStream.writeUTFBytes("ModifiedSEIPath="+projectmSEIfolderdestinationFilesPath+'\n');
+									mpDBFileStream.writeUTFBytes("ContractSEIPath="+projectcSEIfolderdestinationFilesPath+'\n');
+									mpDBFileStream.writeUTFBytes("XMLPath="+projectXMLfolderdestinationFilesPath+'\n');
+									currentState="home";
+									Alert.show("Project Created Successfully.","Create Project");
+									projectName.text="";
+								}
+								
+								workbenchfile=new File(projectWorkBenchdestinationFilesPath+'/'+"workbench_mpDBFile"+".csv");
+								workbench_mpDBFileStream=new FileStream();
+								
+								if (workbench_mpDBFileStream.open(workbenchfile,FileMode.APPEND) == false)
+								{
+									Alert.show("File is not opened successfully");
+									return;
+								}
+								else
+								{
+									workbench_mpDBFileStream.writeUTFBytes('\n');
+									workbench_mpDBFileStream.writeUTFBytes(projectFolderName+'='+projectfolderdestinationFilesPath+'\n');
+									workbench_mpDBFileStream.close();
+								}
+							}
+						}
+					}
+					
+					else
+					{
+						Alert.show("Please Enter the Project Name that you want to Create.","Create Project");
+					}
+				}
+				
+				else
+				{
+					dir.createDirectory();
+					
+					if(projectName.text!="")
+					{
+						projectFolderName = projectName.text;
+						
+						projectWorkBenchdestinationFilesPath=dir.nativePath;
+						//Alert.show("ProjectFolderPath="+projectWorkBenchdestinationFilesPath1);	
+			
+						var projFolder1:File=File.documentsDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName);
+						
+						if(projFolder1.isDirectory.valueOf()==true)
+						{
+							Alert.show("Project with same name exists Please enter another Name....","Create Project");
+						}
+						else
+						{
+					
+							projFolder1.createDirectory();
+							projectfolderdestinationFilesPath=projFolder1.nativePath;
+							
+							projectLocation.text=projectfolderdestinationFilesPath;
+						//	HomeprojectName.text=projectName.text;
+							
+							var dSEIdir1:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'dSEI');
+							dSEIdir1.createDirectory();
+							projectdSEIfolderdestinationFilesPath=dSEIdir1.nativePath;
+							//	Alert.show("ProjectCSVFolderPath="+projectAIfolderdestinationFilesPath);
+							
+							var mSEIdir1:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+"mSEI");
+							mSEIdir1.createDirectory();
+							projectmSEIfolderdestinationFilesPath=mSEIdir1.nativePath;
+							//	Alert.show("ProjectCSVFolderPath="+projectCSVfolderdestinationFilesPath);
+							
+							var cSEIdir1:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+"cSEI");
+							cSEIdir1.createDirectory();
+							projectcSEIfolderdestinationFilesPath=cSEIdir1.nativePath;
+							//	Alert.show("ProjectCSVFolderPath="+projectCSVfolderdestinationFilesPath);
+							
+							var xmldir1:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'XML');
+							xmldir1.createDirectory();
+							projectXMLfolderdestinationFilesPath=xmldir1.nativePath;
+							//	Alert.show("ProjectXMLFolderPath="+projectXMLfolderdestinationFilesPath);
+							
+							var file1:File=new File(projectfolderdestinationFilesPath+'/'+"mpDBFile"+".csv");
+							mpDBFileStream=new FileStream();
+							
+							//Alert.show("Project creation succeeded in Documents Folder");
+							if (mpDBFileStream.open(file1,FileMode.WRITE) == false)
+							{
+								Alert.show("File is not opened successfully");
+								return;
+							}
+							else
+							{
+								mpDBFileStream.writeUTFBytes("MPDB File"+'\n');
+								mpDBFileStream.writeUTFBytes("DefaultSEIPath="+projectdSEIfolderdestinationFilesPath+'\n');
+								mpDBFileStream.writeUTFBytes("ModifiedSEIPath="+projectmSEIfolderdestinationFilesPath+'\n');
+								mpDBFileStream.writeUTFBytes("ContractSEIPath="+projectcSEIfolderdestinationFilesPath+'\n');
+								mpDBFileStream.writeUTFBytes("XMLPath="+projectXMLfolderdestinationFilesPath+'\n');
+								currentState="home";
+								Alert.show("Project Created Successfully.","Create Project");
+								projectName.text="";
+							}
+							
+							workbenchfile =new File(projectWorkBenchdestinationFilesPath+'/'+"workbench_mpDBFile"+".csv");
+							workbench_mpDBFileStream=new FileStream();
+							if (workbench_mpDBFileStream.open(workbenchfile,FileMode.APPEND) == false)
+							{
+								Alert.show("File is not opened successfully");
+								return;
+							}
+							else
+							{
+								workbench_mpDBFileStream.writeUTFBytes('\n');
+								workbench_mpDBFileStream.writeUTFBytes(projectFolderName+'='+projectfolderdestinationFilesPath+'\n');
+								workbench_mpDBFileStream.close();
+							}
+						}
+					}
+					
+					else
+					{
+						Alert.show("Please Enter the Project Name that you want to Create.","Create Project");
+					}
+				}
+			}
+			
+			private function changestatetoAI():void
+			{
+				stateChange = "Importing AI";
+				
+				currentState="importAI";
+			//	Alert.show("AI..."+check++);
+				if(importFolderVisible == 0)
+				{
+					labelForBrowse.visible = true;
+					browseBtn.visible = true;
+				}
+				else
+				{
+					if(projectLocation.text == "" || projectLocation.text == "Select Project Folder From File Menu")
+					{
+						labelForBrowse.visible = true;
+						browseBtn.visible = true;
+					}
+					else
+					{
+						Single.enabled=true;
+						Multiple.enabled=true;
+						labelForBrowse.visible = false;
+						browseBtn.visible = false;
+					}
+				}
+			}
+			
+			private function changestatetoExportAI():void
+			{
+			//	importFolderVisible++;
+				stateChange = "Export to AI"
+				currentState="exportToAI";
+			}
+			
+			private function selectAIFile(event:MouseEvent):void
+			{
+				var file:File = new File();
+				var fileTypes:FileFilter = new FileFilter("aifiles ( *.ai)", " *.ai");
+				file.addEventListener(Event.SELECT,fileSelectHandler);
+				file.browseForOpen("Select AI File",[fileTypes]);
+			}
+			
+			private function fileSelectHandler(event:Event):void
+			{
+				var AIFilename:String=event.target.nativePath;
+				var AIname:String=event.target.name
+				document=File.applicationStorageDirectory.resolvePath(AIFilename);	
+				
+				var copyAIPath:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'dSEI'+'/'+AIname);
+			//	Alert.show(projectWorkBenchdestinationFilesPath+'/'+projectName.text+'/'+'AI'+'/'+AIname);
+				projectdSEIfolderdestinationFilesPath=event.target.nativePath;
+				document.copyTo(copyAIPath, true);
+				
+			//	mpDBFileStream.writeUTFBytes("AIPath="+event.target.parent.nativePath+'\n');
+				workbenchfile =new File(projectWorkBenchdestinationFilesPath+'/'+"workbench_mpDBFile"+".csv");
+				workbench_mpDBFileStream=new FileStream();
+				workbench_mpDBFileStream.open(workbenchfile,FileMode.APPEND);
+				workbench_mpDBFileStream.writeUTFBytes("DefaultScreenElementInfo="+event.target.name+'.dSEI'+'\n');
+				fileNameImported = event.target.name;
+				startProcess(event.target.nativePath)
+			}
+			
+			private function startProcess(AIString:String):void
+			{
+				var illustrator_exe:File = new File('/Applications/Adobe Illustrator CS6/Adobe Illustrator.app/Contents/MacOS/Adobe Illustrator');
+				var illustrator_nativeProcess:NativeProcess = new NativeProcess();
+				var illustrator_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				illustrator_nativeProcessStartupInfo.executable = illustrator_exe;
+				var illustrator_args:Vector.<String> = new Vector.<String>(); 
+				illustrator_args.push(AIString);
+				illustrator_nativeProcessStartupInfo.arguments = illustrator_args;
+				illustrator_nativeProcess.start(illustrator_nativeProcessStartupInfo);
+				
+				sleep(15000);
+				
+				var extended_exe:File = new File('/Applications/Utilities/Adobe Utilities-CS6.localized/ExtendScript Toolkit CS6/ExtendScript Toolkit.app/Contents/MacOS/ExtendScript Toolkit');
+				var extended_nativeProcess:NativeProcess = new NativeProcess();
+				var extended_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				extended_nativeProcessStartupInfo.executable = extended_exe;
+				var extended_args:Vector.<String> = new Vector.<String>(); 
+				extended_args.push("/Users/irfan.a/Desktop/Workbench/WBFOLDER/Script_Release_0.1/Scripts/Forward_script/Main_CSV.jsx");
+				extended_nativeProcessStartupInfo.arguments = extended_args;
+				extended_nativeProcess.start(extended_nativeProcessStartupInfo);
+				
+				sleep(15000);
+				
+				var apple_exe:File = new File('/Users/irfan.a/Desktop/Run.app/Contents/MacOS/applet');
+				var apple_nativeProcess:NativeProcess = new NativeProcess();
+				var apple_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				apple_nativeProcessStartupInfo.executable =apple_exe;
+				var apple_args:Vector.<String> = new Vector.<String>(); 
+				apple_args.push(AIString);
+				apple_nativeProcessStartupInfo.arguments =apple_args;
+				apple_nativeProcess.start(apple_nativeProcessStartupInfo);
+			}
+			
+			//Export of CSV to AI//
+			private function selectExportAIFile(event:MouseEvent):void
+			{
+				var file:File = new File();
+				var fileTypes:FileFilter = new FileFilter("aifiles ( *.ai)", " *.ai");
+				file.addEventListener(Event.SELECT,EXfileSelectHandler);
+				file.browseForOpen("Select AI File",[fileTypes]);
+			}
+			
+			private function EXfileSelectHandler(event:Event):void
+			{
+				var AIFilename:String=event.target.nativePath;
+				var AIname:String=event.target.name;
+				fileNameExported = 	event.target.name;
+				document=File.applicationStorageDirectory.resolvePath(AIFilename);	
+				
+//				var copyAIPath:File=File.applicationStorageDirectory.resolvePath(projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'mSEI'+'/'+AIname);
+//				//	Alert.show(projectWorkBenchdestinationFilesPath+'/'+projectName.text+'/'+'AI'+'/'+AIname);
+//				projectdSEIfolderdestinationFilesPath=event.target.nativePath;
+//				document.copyTo(copyAIPath, true);
+				
+				//	mpDBFileStream.writeUTFBytes("AIPath="+event.target.parent.nativePath+'\n');
+				var WBmpdbFile:File=File.documentsDirectory.resolvePath("Workbench_Tool"+'/'+"workbench_mpDBFile"+".csv");
+				workbenchfile =new File(WBmpdbFile.nativePath);
+				workbench_mpDBFileStream=new FileStream();
+				workbench_mpDBFileStream.open(workbenchfile,FileMode.APPEND);
+				workbench_mpDBFileStream.writeUTFBytes("ModifiedScreenElementInfo="+event.target.name+'.mSEI'+'\n');
+				exstartProcess(event.target.nativePath)
+			}
+			
+			private function exstartProcess(AIString:String):void
+			{
+				var illustrator_exe:File = new File('/Applications/Adobe Illustrator CS6/Adobe Illustrator.app/Contents/MacOS/Adobe Illustrator');
+				var illustrator_nativeProcess:NativeProcess = new NativeProcess();
+				var illustrator_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				illustrator_nativeProcessStartupInfo.executable = illustrator_exe;
+				var illustrator_args:Vector.<String> = new Vector.<String>(); 
+				illustrator_args.push(AIString);
+				illustrator_nativeProcessStartupInfo.arguments = illustrator_args;
+				illustrator_nativeProcess.start(illustrator_nativeProcessStartupInfo);
+				
+				sleep(15000);
+				
+				var extended_exe:File = new File('/Applications/Utilities/Adobe Utilities-CS6.localized/ExtendScript Toolkit CS6/ExtendScript Toolkit.app/Contents/MacOS/ExtendScript Toolkit');
+				var extended_nativeProcess:NativeProcess = new NativeProcess();
+				var extended_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				extended_nativeProcessStartupInfo.executable = extended_exe;
+				var extended_args:Vector.<String> = new Vector.<String>(); 
+				extended_args.push("/Users/irfan.a/Desktop/Workbench/WBFOLDER/Script_Release_0.1/Scripts/Modify_Ai.jsx");
+				extended_nativeProcessStartupInfo.arguments = extended_args;
+				extended_nativeProcess.start(extended_nativeProcessStartupInfo);
+				
+				sleep(15000);
+				
+				var apple_exe:File = new File('/Users/irfan.a/Desktop/Run.app/Contents/MacOS/applet');
+				var apple_nativeProcess:NativeProcess = new NativeProcess();
+				var apple_nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				apple_nativeProcessStartupInfo.executable =apple_exe;
+				var apple_args:Vector.<String> = new Vector.<String>(); 
+				apple_args.push(AIString);
+				apple_nativeProcessStartupInfo.arguments =apple_args;
+				apple_nativeProcess.start(apple_nativeProcessStartupInfo);
+				EXAIFinishBTN.enabled=true;
+			}
+			
+			protected function destinationPathHandler(evt:Event):void 
+			{
+				
+				projectImportedPath =des_filepath.nativePath ;
+				Alert.show("Project Name Selected="+evt.target.name,"Import AI");
+				var impWB:File=File.documentsDirectory.resolvePath("Workbench_Tool");
+			
+				projectFolderName=evt.target.name;
+				projectfolderdestinationFilesPath=projectImportedPath;
+				projectWorkBenchdestinationFilesPath=impWB.nativePath;
+				projectdSEIfolderdestinationFilesPath=projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'dSEI';
+				projectmSEIfolderdestinationFilesPath=projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'mSEI';
+				projectcSEIfolderdestinationFilesPath=projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'cSEI';
+				projectXMLfolderdestinationFilesPath=projectWorkBenchdestinationFilesPath+'/'+projectFolderName+'/'+'XML';
+				
+				if(!des_filepath.exists) 
+				{
+					Alert.show("Folder not found");
+				}
+			}
+			
+			protected function selectProjectFolder(event:Event):void 
+			{
+				
+				des_filepath= new File;
+				des_filepath.addEventListener(Event.SELECT, destinationPathHandler);
+				des_filepath.browseForDirectory("Choose a directory");
+				Single.enabled=true;
+				Multiple.enabled=true;
+			}
+			
+			
+			private function sleep(ms:int):void 
+			{
+				var init:int = getTimer();
+				while(true) 
+				{
+					if(getTimer() - init >= ms) 
+					{
+						break;
+					}
+				}
+			 }
+
+			//Deleting the project folder///
+			private function deleteProject(event:Event):void
+			{
+				if(delprojectName.text!="")
+				{
+					Alert.show("Do you want to delete item?","Confirm delete",Alert.YES|Alert.NO,null,deleteHandler,null,Alert.NO);
+				}
+				else
+				{
+					Alert.show("Please Enter the Project Name that you want to delete.","Delete Project");
+				}
+			}
+			
+			private function deleteHandler(event:CloseEvent):void	
+			{			
+				var chkInt:int=0;
+				notPresent = 0;
+				
+				if(event.detail== Alert.YES)
+				{
+					var WBFolderChk:File=File.documentsDirectory.resolvePath("Workbench_Tool");
+					
+					if(WBFolderChk.isDirectory.valueOf() == true)
+					{
+					var chkFolder:File=File.documentsDirectory.resolvePath("Workbench_Tool"+'/'+delprojectName.text);
+
+						if(chkFolder.isDirectory.valueOf()==true)
+						{
+							//Alert.show("Directory...");
+							var workbenchfile:File=File.documentsDirectory.resolvePath("Workbench_Tool/workbench_mpDBFile.csv")
+							workbench_mpDBFileStream=new FileStream();
+							workbench_mpDBFileStream.open(workbenchfile,FileMode.READ);
+							var deleteFolderStr:String=workbench_mpDBFileStream.readUTFBytes(workbench_mpDBFileStream.bytesAvailable);
+							var splitFolderLine:Array=deleteFolderStr.split('\n');
+							for(var d:int=0;d<splitFolderLine.length;d++)
+							{
+								var splitFolderComma:Array=splitFolderLine[d].split(',');
+								var folderSearch:String=splitFolderComma[0];
+							
+								if(folderSearch.search(delprojectName.text)>=0)
+								{
+									//Alert.show("in IF...");
+									var deleteProject:Array=folderSearch.split('=');
+									var delString:String=deleteProject[1];
+							
+									var delFolder:File = File.documentsDirectory.resolvePath(delString);
+									delFolder.addEventListener(IOErrorEvent.IO_ERROR,handleIOError,false,1,false);
+									delFolder.addEventListener(Event.COMPLETE,onComplete,false,1,false);
+									delFolder.deleteDirectoryAsync(true);
+									break;
+								}
+								else
+								{
+									//Alert.show("in else...");
+									notPresent++;
+								}
+								chkInt = splitFolderLine.length;
+							}
+						 }
+						
+						else
+						{
+						   if((notPresent == chkInt) || (notPresent == 0)) 
+							{
+								Alert.show("Folder Not Present in the Workbech","Delete Project");
+								delprojectName.text = "";
+							}
+						   else
+						   {
+						   		Alert.show("Folder Not Present in the Workbech","Delete Project");
+								delprojectName.text = "";
+						   }
+					    }
+						
+					  if(notPresent == chkInt) 
+					   {
+							Alert.show("Folder Not Present in the Workbech","Delete Project");
+							delprojectName.text = "";
+					   }	
+					 }
+				
+					else
+					{
+						Alert.show("WorkBench Not Created","Delete Project");	
+						delprojectName.text = "";
+					}
+				 }
+				
+				else
+				{
+					//Alert.show("If NO Selected from Alert");
+				}
+			 }
+			
+			private function handleIOError(event:Event):void
+			{
+			//	Alert.show("I/O Error Handled while deleting project");
+			}
+			
+			private function onComplete(event:Event):void
+			{
+				var workbenchfile:File=File.documentsDirectory.resolvePath("Workbench_Tool/workbench_mpDBFile.csv")
+				workbench_mpDBFileStream=new FileStream();
+				workbench_mpDBFileStream.open(workbenchfile,FileMode.READ);
+				var updateFolderStr:String=workbench_mpDBFileStream.readUTFBytes(workbench_mpDBFileStream.bytesAvailable);
+				var lineSplit:Array=updateFolderStr.split("\n");
+				var splitArray:Array=new Array();
+				var CSVArray:Array=new Array();
+				var CSVString:String="";
+				var nameProj:String=new String();
+				
+				for(var q:int=0;q<lineSplit.length;q++)
+				{
+					splitArray=lineSplit[q].split(',');
+					var folderSearch:String=splitArray[0];
+					var getFolderName:Array=folderSearch.split('=');
+					var getFolderNameDel:String=getFolderName[0];
+					
+
+					if(getFolderNameDel.search(delprojectName.text)>=0)
+					{
+					//	Alert.show("entered...."+getFolderNameDel.search(delprojectName.text));
+						lineSplit[q]=lineSplit[q+1];
+						CSVString+=lineSplit[q]+'\n';
+						lineSplit[q+1]="";
+					}
+					
+					else
+					{
+						CSVString+=lineSplit[q]+'\n';
+					}
+				}		
+		
+				workbench_mpDBFileStream.close();
+				workbench_mpDBFileStream.open(workbenchfile,FileMode.WRITE)
+				workbench_mpDBFileStream.writeUTFBytes(CSVString);
+				workbench_mpDBFileStream.close();
+				Alert.show("Project Deleted...","Delete Project");
+				currentState="home";
+				delprojectName.text="";
+				projectLocation.text="";
+			}
+			
+			
+			private function screenContract(event:Event):void
+			{
+				currentState="ScreenContract";
+			}
+			
+			private function selectContractFile(event:Event):void
+			{
+				
+			}
+			
+			///XML Creation////
+			private function generateXML(event:Event):void
+			{				
+				var csvData:String=new String();
+				var DUfile1:File=new File(projectfolderdestinationFilesPath+'/'+"mpDBFile"+".csv");
+				if(DUfile1.exists)
+				{
+					var DUstream1:FileStream=new FileStream();
+					if(DUstream1.open(DUfile1,FileMode.READ) == false)
+					{
+						Alert.show("File is not opened successfully");
+					}
+						
+					else
+					{
+						var DUdata1:String=DUstream1.readUTFBytes(DUstream1.bytesAvailable);
+		//				Alert.show(DUdata1);
+						var mpDBLineBuffer:Array=DUdata1.split('\n');
+						for(var i:int=0;i<mpDBLineBuffer.length;i++)
+						{
+							var mpDBCommaBuffer:Array=mpDBLineBuffer[i].split(',');
+							var searchStr:String=mpDBCommaBuffer[0];
+							if(searchStr.search("dSEI")>=0)
+							{
+								var splitCSVPath:Array=searchStr.split('=');
+								
+								if(fileNameImported.search('.ai')>=0)  //To remove .ai from the file name//
+								{
+								var removeAI:Array = fileNameImported.split('.ai');
+								fileNameImported = removeAI[0];
+								}
+								
+			//					Alert.show("CSV Path...."+splitCSVPath[1]+'/'+fileNameImported+'.csv');
+								var csvFile:File=new File(splitCSVPath[1]+'/'+fileNameImported+'.csv');
+								if(csvFile.exists)
+								{
+										var csvStream:FileStream=new FileStream();
+										if(csvStream.open(csvFile,FileMode.READ) == false)
+										{
+											Alert.show("File is not opened successfully");
+										}
+												
+										else
+										{
+											csvData=csvStream.readUTFBytes(csvStream.bytesAvailable);
+				//							Alert.show("CSV="+csvData);
+											var xml:XmlGeneration =new XmlGeneration(csvData,projectfolderdestinationFilesPath);
+										}
+								}
+							}
+						}
+					 }
+				currentState="home";
+				Single.selected=false;
+				Multiple.selected=false;
+				Single.enabled=false;
+				Multiple.enabled=false;
+				genbutton.enabled=false;
+				AIFinishBTN.enabled=false;
+			}
+		   }
+	
+			private function btnEnable(event:Event):void
+			{
+				if(currentState == "importAI")
+				{
+					if(Single.selected==true)
+					{
+						genbutton.enabled=true;
+						AIFinishBTN.enabled=true;
+					}
+					
+					 if(Multiple.selected==true)
+					{
+						genbutton1.enabled=true;
+						AIFinishBTN.enabled=true;
+						AIBackBTN.enabled=true;
+						AICancelBTN.enabled=true;
+						AINextBTN.enabled=true;
+					}
+				}
+				
+				else if(currentState == "exportToAI")
+				{
+					if(exSingle.selected==true)
+					{
+						exgenbutton.enabled = true;
+					}
+				}
+				
+				else if(currentState == "ScreenContract")
+				{
+					if(CONTSingle.selected==true)
+					{
+						CONTgenbutton.enabled = true;
+					}
+					else if(event.target.id == "CONTAIBackBTN")
+					{
+						currentState="importAI";
+					}
+				}
+					
+			}
+	
+			
+			///Afer creating project go back to main screen////
+			private function goBackToHome(event:Event):void
+			{							
+				if(currentState == "ScreenContract")
+				{
+					currentState="home";
+				}
+				
+				else if(currentState == "importAI")
+				{
+					currentState="home";
+					Single.selected=false;
+					Multiple.selected=false;
+					genbutton.enabled=false;
+					genbutton1.enabled=false;					
+				}
+				
+				else if(currentState == "exportToAI")
+				{
+					currentState="home";
+				}
+				
+				else if(currentState == "Deleteproject")
+				{
+					currentState="home";
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	
+			
+		<mx:MenuBar x="0" y="0" labelField="@label" iconField="@icon" width="100%" height="6%" fontSize="15"  dataProvider="{menuBarCollection}" change="changeHandler(event);" chromeColor="white" color="black" rollOverColor="gray" includeIn="home"/>
+		<s:Label text="GMHMI MODELING WORKBENCH" textAlign="center" fontSize="29" x="90" y="205" color="#FFF8DC" includeIn="home"/>
+		<s:BitmapImage  source="@Embed('assets/1  KBTS Logo.JPG')" width="10%" height="15%" x="275" y="255" includeIn="home"/>
+	
+		
+		<s:Label text="NEW PROJECT" textAlign="center" fontSize="22" x="200" y="10" color="#FFF8DC" includeIn="Createproject"/>
+		<s:Label text="Enter a Name for your Project" textAlign="center" fontSize="18" x="10" y="65" color="#FFF8DC" includeIn="Createproject"/>
+		<s:Label text="Project Name" textAlign="center" includeIn="Createproject" fontSize="18" x="10" y="130" color="#FFF8DC"/>
+		<s:TextArea id="projectName" x="250" y="127" includeIn="Createproject" width="200" height="25" prompt="Name" color="gray" />
+		<s:Label text="Project Location :" textAlign="center" includeIn="Createproject" fontSize="20" x="10" y="183" color="#FFF8DC"/>
+		<s:TextArea id="projectLocation" x="250" y="183" includeIn="Createproject" width="350" fontSize="12" height="25" color="black" text="Select Project Folder From File Menu" editable="false"/>
+		<s:Button id="projectFinishBTN" x="350" y="450" label="Finish" includeIn="Createproject" chromeColor="#FFDAB9" color="#9400D3" click="readPathOfFolders(event)" enabled="true"/>    
+		<s:Button id="projectBackBTN" x="250" y="450" label="Back" includeIn="Createproject" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" enabled="true"/>    
+		<s:Button id="projectCancelBTN" x="450" y="450" label="Cancel" includeIn="Createproject" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" enabled="true"/>
+		<s:Line xFrom="0" xTo="620" y="420" includeIn="Createproject">
+		<s:stroke>
+			<s:SolidColorStroke color="#FFF8DC"/>
+		</s:stroke>
+		</s:Line>
+	
+		<s:Label text="IMPORT AI FILE" textAlign="center" fontSize="22" x="200" y="10" color="#FFF8DC" includeIn="importAI"/>
+		<s:Label text="Select Project Folder to Import AI" id="labelForBrowse" textAlign="center" includeIn="importAI" fontSize="18" x="10" y="83" color="#FFF8DC" visible="false"/>
+		<s:Button id="browseBtn" x="300" y="80" label="Select Project Folder" includeIn="importAI" width="180" chromeColor="#FFDAB9" color="#9400D3" click="selectProjectFolder(event)" visible="false"/>
+		<s:CheckBox id="Single"  x="10" y="120" width="160" height="20" includeIn="importAI"  click="btnEnable(event)" selected="false" enabled="false"/>
+		<s:Label text="Select Single AI File" textAlign="center" includeIn="importAI" fontSize="18" x="50" y="123" color="#FFF8DC"/>
+		<s:Button id="genbutton" x="300" y="120" label="Select AI File" includeIn="importAI" width="180" chromeColor="#FFDAB9" color="#9400D3" click="selectAIFile(event)" enabled="false"/>
+	    <s:CheckBox id="Multiple"  x="10" y="170" width="160" height="20" includeIn="importAI" click="btnEnable(event)" selected="false" enabled="false"/>
+		<s:Label text="Select Multiple AI File" textAlign="center" includeIn="importAI" fontSize="18" x="50" y="173" color="#FFF8DC"/>
+		<s:Button id="genbutton1" x="300" y="170" label="Select AI File" includeIn="importAI" width="180" chromeColor="#FFDAB9" color="#9400D3" click="selectAIFile(event)" enabled="false"/>
+		<s:Button id="AIFinishBTN" x="350" y="450" label="Finish" includeIn="importAI" chromeColor="#FFDAB9" color="#9400D3" click="generateXML(event)" enabled="false"/>    
+		<s:Button id="AIBackBTN" x="150" y="450" label="Back" includeIn="importAI" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)"/>    
+		<s:Button id="AICancelBTN" x="450" y="450" label="Cancel" includeIn="importAI" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" enabled="false"/>
+		<s:Button id="AINextBTN" x="250" y="450" label="Next" includeIn="importAI" chromeColor="#FFDAB9" color="#9400D3" click="screenContract(event)"/>
+		<s:Line xFrom="0" xTo="620" y="420" includeIn="importAI">
+		<s:stroke>
+			<s:SolidColorStroke color="#FFF8DC"/>
+		</s:stroke>
+		</s:Line>
+	
+		<s:Label text="Associate Screen Transition Contract" textAlign="center" fontSize="22" x="125" y="10" color="#FFF8DC" includeIn="ScreenContract"/>
+		<s:Label text="Select Screen Transition Contract" textAlign="center" fontSize="18" x="10" y="65" color="#FFF8DC" includeIn="ScreenContract"/>
+		<s:CheckBox id="CONTSingle"  x="10" y="120" width="160" height="20" includeIn="ScreenContract" click="btnEnable(event)"/>
+		<s:Label text="Select Contract File" textAlign="center" includeIn="ScreenContract" fontSize="18" x="50" y="123" color="#FFF8DC"/>
+		<s:Button id="CONTgenbutton" x="300" y="120" label="Select Contract" includeIn="ScreenContract" width="180" chromeColor="#FFDAB9" color="#9400D3" click="selectContractFile(event)" enabled="false"/>
+		<s:Button id="CONTAIBackBTN" x="250" y="450" label="Back" includeIn="ScreenContract" chromeColor="#FFDAB9" color="#9400D3" click="btnEnable(event)"/> 
+		<s:Button id="CONTAICancelBTN" x="450" y="450" label="Cancel" includeIn="ScreenContract" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" />
+		<s:Button id="CONTAIFinishBTN" x="350" y="450" label="Finish" includeIn="ScreenContract" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)"/>    
+		<s:Line xFrom="0" xTo="620" y="420" includeIn="ScreenContract">
+			<s:stroke>
+				<s:SolidColorStroke color="#FFF8DC"/>
+			</s:stroke>
+		</s:Line>
+	
+		<s:Label text="EXPORT AI FILE" textAlign="center" fontSize="22" x="200" y="10" color="#FFF8DC" includeIn="exportToAI"/>
+		<s:Label text="Select Imported AI File from the Project" textAlign="center" fontSize="18" x="10" y="65" color="#FFF8DC" includeIn="exportToAI"/>
+		<s:CheckBox id="exSingle"  x="10" y="120" width="160" height="20" includeIn="exportToAI" click="btnEnable(event)"/>
+		<s:Label text="Select AI File" textAlign="center" includeIn="exportToAI" fontSize="18" x="50" y="123" color="#FFF8DC"/>
+		<s:Button id="exgenbutton" x="300" y="120" label="Select AI File" includeIn="exportToAI" width="180" chromeColor="#FFDAB9" color="#9400D3" click="selectExportAIFile(event)" enabled="false"/>
+		<s:Button id="EXAICancelBTN" x="450" y="450" label="Cancel" includeIn="exportToAI" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" />
+		<s:Button id="EXAIFinishBTN" x="350" y="450" label="Finish" includeIn="exportToAI" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" enabled="false"/>    
+		<s:Line xFrom="0" xTo="620" y="420" includeIn="exportToAI">
+			<s:stroke>
+				<s:SolidColorStroke color="#FFF8DC"/>
+			</s:stroke>
+		</s:Line>
+	
+		<s:Label text="DELETE PROJECT" textAlign="center" fontSize="22" x="200" y="10" color="#FFF8DC" includeIn="Deleteproject"/>
+		<s:Label text="Enter the Folder Name to Delete Project" textAlign="center" fontSize="18" x="10" y="65" color="#FFF8DC" includeIn="Deleteproject"/>
+		<s:Label text="Project Name" textAlign="center" includeIn="Deleteproject" fontSize="18" x="10" y="130" color="#FFF8DC"/>
+		<s:TextArea id="delprojectName" x="250" y="130" includeIn="Deleteproject" width="180" height="20" prompt="Name" color="gray"/>
+		<s:Button id="deleteBTN" x="350" y="450" label="Delete" includeIn="Deleteproject" chromeColor="#FFDAB9" color="#9400D3" click="deleteProject(event)" enabled="true"/>    
+		<s:Button id="cancelBTN" x="250" y="450" label="Cancel" includeIn="Deleteproject" chromeColor="#FFDAB9" color="#9400D3" click="goBackToHome(event)" enabled="true"/>
+		<s:Line xFrom="0" xTo="620" y="420" includeIn="Deleteproject">
+		<s:stroke>
+			<s:SolidColorStroke color="#FFF8DC"/>
+		</s:stroke>
+		</s:Line>
+	
+</s:WindowedApplication>
